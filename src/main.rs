@@ -13,17 +13,6 @@ struct Cell {
     variant: CellTypes
 }
 
-impl Cell {
-    fn new() -> Cell {
-        Cell { variant: CellTypes::Blank }
-    }
-
-    fn change(&mut self, new: CellTypes) {
-        println!("changing {:?}", new);
-        self.variant = new
-    }
-}
-
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self.variant {
@@ -34,92 +23,63 @@ impl fmt::Display for Cell {
     }
 }
 
-struct Row {
-    cells: Vec<Cell>
-}
-
-impl Row {
-    fn new() -> Row {
-        let mut row = vec![];
-
-        for _ in 0..3 {
-            row.push(Cell::new())
-        }
-
-        Row {
-            cells: row
-        }
+impl Cell {
+    fn new() -> Cell {
+        Cell { variant: CellTypes::Blank }
     }
 
-    fn draw(&self) {
-        let s: &Vec<Cell> = &self.cells;
-
-        println!("{}|{}|{}", s[0], s[1], s[2])
+    fn change(&mut self, new: CellTypes) {
+        self.variant = new
     }
 }
 
 struct Board {
-    rows: Vec<Row>
+    cells: [[Cell; 3]; 3]
 }
 
 impl Board {
     fn new() -> Board {
-        let mut rows = vec![];
-
-        for _ in 0..3 {
-            rows.push(Row::new())
-        }
-
         Board {
-            rows
+            cells: [[Cell::new(); 3]; 3]
         }
     }
 
     fn draw(&self) {
-        println!();
-        self.rows[0].draw();
+        let s = &self.cells;
+        println!("{}|{}|{}", s[0][0], s[0][1], s[0][2]);
         println!("-+-+-");
-        self.rows[1].draw();
+        println!("{}|{}|{}", s[1][0], s[1][1], s[1][2]);
         println!("-+-+-");
-        self.rows[2].draw();
-        println!();
+        println!("{}|{}|{}", s[1][0], s[2][1], s[2][2]);
     }
 
-    fn get(&self, point: Point) -> Cell {
-        self.rows[point.y].cells[point.x]
-    }
-}
-
-enum PlayerTypes {
-    Nought,
-    Cross
-}
-
-impl PlayerTypes {
-    fn as_celltype(&self) -> CellTypes {
-        match self {
-            PlayerTypes::Nought => CellTypes::Nought,
-            PlayerTypes::Cross => CellTypes::Cross
+    fn get(&mut self, point: Point) -> Result<&mut Cell, &str> {
+        if point.y > self.cells.len() || point.x > self.cells[0].len() {
+            return Err("Co-ordinate out of bounds!")
         }
+
+        println!("({}, {})", point.x, point.y);
+        Ok(&mut self.cells[point.y][point.x])
     }
 }
 
 struct Player {
-    variant: PlayerTypes,
+    variant: CellTypes,
 }
 
 impl Player {
     fn new() -> Player {
         match rand::random() {
-            true => Player { variant: PlayerTypes::Nought },
-            false => Player { variant: PlayerTypes::Cross },
+            true => Player { variant: CellTypes::Nought },
+            false => Player { variant: CellTypes::Cross },
         }
     }
 
     fn switch(&mut self) {
         self.variant = match self.variant {
-            PlayerTypes::Nought => PlayerTypes::Cross,
-            PlayerTypes::Cross => PlayerTypes::Nought,
+            CellTypes::Nought => CellTypes::Cross,
+            CellTypes::Cross => CellTypes::Nought,
+            CellTypes::Blank => panic!("For some reason player.variant is blank! No idea why!"),
         }
     }
 }
@@ -127,8 +87,9 @@ impl Player {
 impl fmt::Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self.variant {
-            PlayerTypes::Cross => "Cross",
-            PlayerTypes::Nought => "Nought"
+            CellTypes::Cross => "Cross",
+            CellTypes::Nought => "Nought",
+            CellTypes::Blank => panic!("For some reason player.variant is blank! No idea why!"),
         })
     }
 }
@@ -140,29 +101,36 @@ struct Point {
 
 impl Point {
     fn new(vector: Vec<usize>) -> Point {
-        Point { x: vector[0], y: vector[1] }
+        println!("{}, {}", vector[0], vector[1]);
+        Point { x: vector[0] - 1, y: vector[1] - 1 }
     }
 }
 
 fn main() {
-    let board = Board::new();
+    let mut board = Board::new();
     let mut player = Player::new();
 
     loop {
         board.draw();
         println!("{}'s turn!", player);
-        println!("Enter your input in the form x, y where the top-left is 0, 0 and the bottom right is 3, 3:");
+        println!("Enter your input in the form x, y where the top-left is 1,  and the bottom right is 3, 3:");
 
         let mut input = String::new();
         io::stdin().read_line(&mut input)
                    .expect("Reading from input failed :(");
 
-        let coords = Point::new(input.split(",") // Parsing input into a vector of u32s
-                                    .map(|x| x.trim().parse().unwrap())
+        let coords = Point::new(input.split(",") // Parsing input into a point struct
+                                    .map(|x| x.trim().parse().expect("Enter a number!"))
                                     .collect());
 
-        println!("Turning cell ({}, {}) to {}", coords.x, coords.y, player);
-        board.get(coords).change(player.variant.as_celltype());
+        match board.get(coords) {
+            Ok(cell) => cell.change(player.variant),
+            Err(msg) => {
+                println!("{}", msg);
+                break;
+            }
+        };
+
         player.switch();
     }
 }
