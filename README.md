@@ -1,7 +1,8 @@
 # TicTacToe
 
 I wanted to a simple project to make in rust, I chose Noughts and Crosses / Tictactoe :D
-Probably bad code but this is literally one of the first thins ive ever made in rust dont bully me ;-;
+
+Probably bad code but this is literally one of the first things Ive ever made in Rust dont bully me ;-;
 
 ## Usage
 
