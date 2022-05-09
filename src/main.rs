@@ -1,11 +1,19 @@
 use rand;
 use std::{
     fmt, io,
-    ops::{Add, AddAssign},
+    ops::{Add, AddAssign}, error::Error,
 };
 
-const EXHUASTIVE_CHECK_MSG: &str = "Exhaustive checking! If you see this something has gone seriously, seriously wrong.";
 const EDGE: u32 = 3;
+
+#[derive(Debug)]
+struct OutOfBoundsError;
+impl Error for OutOfBoundsError {}
+impl fmt::Display for OutOfBoundsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", "Co-ordinate out of bounds!")
+    }
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum CellTypes {
@@ -22,7 +30,7 @@ impl fmt::Display for CellTypes {
             match self {
                 CellTypes::Cross => "Cross",
                 CellTypes::Nought => "Nought",
-                _ => panic!("{}", EXHUASTIVE_CHECK_MSG),
+                CellTypes::Blank => "Nobody",
             }
         )
     }
@@ -70,22 +78,22 @@ impl Pointer {
         }
     }
 
-    fn change_pos(&mut self, by: Point) -> Result<(), &str> {
+    fn change_pos(&mut self, by: Point) -> Result<(), OutOfBoundsError> {
         if !coords_in_bounds(self.pos + by) {
-            return Err("Ended up out of bounds whilst moving the pointer!");
+            return Err(OutOfBoundsError);
         }
 
         self.pos += by;
         Ok(())
     }
 
-    fn change_pos_coords(&mut self, x: i32, y: i32) -> Result<(), &str> {
+    fn change_pos_coords(&mut self, x: i32, y: i32) -> Result<(), OutOfBoundsError> {
         self.change_pos(Point::new(x as isize, y as isize))
     }
 
-    fn set_pos(&mut self, to: Point) -> Result<(), &str> {
+    fn set_pos(&mut self, to: Point) -> Result<(), OutOfBoundsError> {
         if !coords_in_bounds(to) {
-            return Err("Co-ordinates given to Pointer::set_pos are out of bounds!");
+            return Err(OutOfBoundsError);
         }
 
         self.pos = to;
@@ -117,7 +125,7 @@ impl Board {
         println!();
     }
 
-    fn get(&mut self, point: Point) -> Result<&mut Cell, &str> {
+    fn get(&mut self, point: Point) -> Result<&mut Cell, &str> { // No OutOfBoundsError bcs 2 exceptions + im lazy
         if !coords_in_bounds(point) {
             return Err("Co-ordinate out of bounds!");
         }
@@ -128,15 +136,17 @@ impl Board {
         }
     }
 
-    fn type_at(&self, point: Point) -> Result<CellTypes, &str> {
+    fn type_at(&self, point: Point) -> Result<CellTypes, OutOfBoundsError> {
         if !coords_in_bounds(point) {
-            return Err("Co-ordinate out of bounds!");
+            return Err(OutOfBoundsError);
         }
 
         Ok(self.cells[point.y as usize][point.x as usize].variant)
     }
 
     fn verify(&mut self) -> Option<CellTypes> {
+        let mut occupied = 0;
+
         for (x, row) in self.cells.iter().enumerate() {
             for y in 0..row.len() {
                 // Loop through every y co-ordinate
@@ -148,6 +158,8 @@ impl Board {
                 if checking == CellTypes::Blank {
                     continue;
                 }
+
+                occupied += 1;
 
                 'directions: for direction in [
                     (-1, -1),
@@ -187,6 +199,10 @@ impl Board {
             }
         }
 
+        if occupied >= EDGE * EDGE {
+            return Some(CellTypes::Blank);
+        }
+
         None // If there were no full rows
     }
 }
@@ -209,7 +225,7 @@ impl Player {
         self.variant = match self.variant {
             CellTypes::Nought => CellTypes::Cross,
             CellTypes::Cross => CellTypes::Nought,
-            _ => panic!("{}", EXHUASTIVE_CHECK_MSG),
+            _ => panic!("{}", "Exhaustive checking! If you see this something has gone seriously, seriously wrong."),
         }
     }
 }
@@ -293,4 +309,10 @@ fn main() {
 
         player.switch();
     }
+
+    let mut _unused = String::new();
+    println!("Press enter to close!");
+    io::stdin()
+        .read_line(&mut _unused)
+        .expect("Reading from input failed :(");
 }
